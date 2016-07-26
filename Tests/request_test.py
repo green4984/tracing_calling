@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import requests
+from gevent import monkey
+monkey.patch_socket()
 from function_call import register_tracker
 
 
