@@ -1,0 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+monkey patch for support lib
+"""
+
+from __future__ import absolute_import
+
+__all__ = [
+    'patch_request'
+]
+
+def patch_request():
+    """ Just for patch requests python lib for tracing operation
+    :return None
+    """
+    patch_module('requests')
+
+
+def patch_module(name):
+    inner_lib_module = getattr(__import__('tracking.' + name), name)
+    module_name = getattr(inner_lib_module, '__target__', name)
+    module = __import__(module_name)
+    implements = getattr(inner_lib_module, '__implements__', [])
+    for attr in implements:
+        setattr(module, attr, getattr(inner_lib_module, attr))
