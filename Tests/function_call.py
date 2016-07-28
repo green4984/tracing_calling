@@ -30,6 +30,9 @@ def trace_calls_and_returns(frame, event, arg):
     elif event == 'return':
         bgn_time = TIME_CALL[key]
         print '%s return at time %f spend time %f' % (func_name, time.time(), time.time() - bgn_time)
+    elif event == 'exception':
+        bgn_time = TIME_CALL[key]
+        print '%s exception at time %f spend time %f' % (func_name, time.time(), time.time() - bgn_time)
     return
 
 def register_tracker(func_list=None):
@@ -39,6 +42,14 @@ def register_tracker(func_list=None):
     for func in func_list:
         TIME_CALL.setdefault(func[0] + u':' + func[1], 0)
     sys.settrace(trace_calls_and_returns)
+
+def unregister_tracker(func_list=None):
+    global TIME_CALL
+    func_list = func_list or []
+    for func in func_list:
+        TIME_CALL.pop(func[0] + u':' + func[1], None)
+    sys.settrace(None)
+
 
 # def trace_lines(frame, event, arg):
 #     if event != 'line':

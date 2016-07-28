@@ -22,6 +22,7 @@ def request(method, url, **kwargs):
         response = _request(method, url, **kwargs)
     except Exception as e:
         logging.error("request catch error %s", e.message, exc_info=1)
+        raise
     finally:
         logging.debug("request method %s url %s end", method, url)
     return response

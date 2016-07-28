@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
+from __future__ import print_function
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
 try:  # Python 2.7+
@@ -17,3 +19,8 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
 
 
+from multiprocessing import Queue
+
+msg_queue = Queue()
+
+from .main import track
