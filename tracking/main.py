@@ -28,8 +28,10 @@ class Tracker(object):
         :return:
         """
         self.__seq = -1
-        self.chain_id = chain_id or uuid.uuid4()
+        self.chain_id = chain_id or uuid.uuid4().get_hex()
         self.chain_name = chain_name or chain_id
+        self.last_operation_timestamp = time.time()
+        self.last_message = None
 
     @property
     def _seq(self):
@@ -43,15 +45,16 @@ class Tracker(object):
         :param return_value: method return value you want to monitor
         :return:
         """
-        self.__send(desc,exception,return_value)
+        self.__send(desc, exception, return_value)
 
     def __send(self, desc=None, exception=None, return_value=None, track_finished=False):
         exc_message = None
         exc_info = None
-        if not exception:
+        if exception:
             assert isinstance(exception, Exception)
-            exc_message = exception.message
+            exc_message = exception.message.message
             exc_info = traceback.format_exc()
+        timestamp = int(time.time() * 1000)
         message_formater = {
             'chain_id': self.chain_id,
             'seq': self._seq,
@@ -61,10 +64,22 @@ class Tracker(object):
             'exception_stack': exc_info,
             'return_value': return_value,
             'track_finished': track_finished,
-            'timestamp': int(time.time() * 1000)
+            'bgn_timestamp': timestamp,
+            'end_timestamp': timestamp,
+            'took': 0
         }
-        logger.debug("tracker put message in queue %s", json.dumps(message_formater))
-        msg_queue.put(message_formater)
+
+        if self.last_message: # has last message
+            message_formater, self.last_message = self.last_message, message_formater
+
+            if track_finished:
+                message_formater['track_finished'] = True
+            message_formater['end_timestamp'] = int(time.time() * 1000)
+            message_formater['took'] = message_formater['end_timestamp'] - message_formater['bgn_timestamp']
+            logger.debug("tracker put message in queue %s", json.dumps(message_formater))
+            msg_queue.put(message_formater)
+        else:
+            self.last_message = message_formater
 
     def __del__(self):
         """
