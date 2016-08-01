@@ -4,8 +4,10 @@ from __future__ import unicode_literals
 import tracking
 
 import requests
+import time
 from function_call import register_tracker, unregister_tracker
 
+track_manager = tracking.TrackerManager(tracking.RedisAdaptor, redis_uri='redis://localhost:6380/3')
 
 def length_html(data):
     print len(data)
@@ -15,11 +17,10 @@ def length_html(data):
 def request_url(url):
     tracker = tracking.Tracker()
     try:
-        tracker.tracking(desc="开始下载url:%s" % url)
+        tracker.tracking(desc="下载url:%s" % url)
         r = requests.get(url)
-        tracker.tracking(desc="下载url:%s完成" % url)
-        length = length_html(r.text)
         tracker.tracking(desc="计算下载url文件长度")
+        length = length_html(r.text)
         return length
     except Exception as e:
         tracker.tracking(desc="下载url:%s发生错误" % url, exception=e)
@@ -50,3 +51,4 @@ request_url(url_list[0])
 # ])
 
 request_url(url_list[1])
+time.sleep(10)

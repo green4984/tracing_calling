@@ -23,4 +23,4 @@ from multiprocessing import Queue
 
 msg_queue = Queue()
 
-from .main import track, Tracker
+from .main import track, Tracker, TrackerManager, RedisAdaptor
