@@ -51,4 +51,4 @@ request_url(url_list[0])
 # ])
 
 request_url(url_list[1])
-time.sleep(10)
+time.sleep(10000)
