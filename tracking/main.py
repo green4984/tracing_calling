@@ -42,6 +42,13 @@ class BaseAdaptor(object):
     def update(self, chain_id, seq, data_dict=None):
         pass
 
+    @abc.abstractmethod
+    def exist(self, chain_id, seq):
+        pass
+
+    def get(self, chain_id, seq):
+        pass
+
     def serialize(self, data):
         return json.dumps(data)
 
@@ -59,13 +66,21 @@ class RedisAdaptor(BaseAdaptor):
         assert value
         assert isinstance(value, dict)
         key = value.get('chain_id')
-        self.__redis.lpush(key, json.dumps(value))
+        self.__redis.rpush(key, self.serialize(value))
+
+    def get(self, chain_id, seq):
+        return self.__redis.lrange(chain_id, seq, seq)
+
+    def exist(self, chain_id, seq):
+        item = self.get(chain_id, seq)
+        if item:
+            return True
+        return False
 
     def update(self, chain_id, seq, data_dict=None):
         if not data_dict:
             return
-        # FIXME this is only seq = 0 hard code here!!!!
-        old_value = self.__redis.lrange(chain_id, -1, 1)
+        old_value = self.get(chain_id, seq)
         if old_value and len(old_value) > 0:
             old_value = old_value[0]
             old_value = self.deserialize(old_value)
@@ -73,7 +88,7 @@ class RedisAdaptor(BaseAdaptor):
             for key, v in data_dict.iteritems():
                 old_value[key] = v
             print old_value
-            self.__redis.lset(chain_id, -1, self.serialize(old_value))
+            self.__redis.lset(chain_id, seq, self.serialize(old_value))
 
 
 class TrackerManager(object):
@@ -88,11 +103,11 @@ class TrackerManager(object):
         self.__init_send_thread()
 
     def __init_send_thread(self):
-        t = threading.Thread(target=self.__save)
+        t = threading.Thread(target=self.__receive_msg)
         t.setDaemon(True)
         t.start()
 
-    def __save(self):
+    def __receive_msg(self):
         global __manager_status
         value = None
         while True:
@@ -108,18 +123,28 @@ class TrackerManager(object):
 
     def __router(self, value):
         action_dict = {
-            'index': [self._cls.save, [value]],
-            'update': [self._cls.update, [value.get('chain_id'), value.get('seq'), value]]
+            'index': self.__save,
+            'update': self.__update,
         }
         action = value.pop('_action', 'index')
         method = action_dict.get(action)
-        method[0](*method[1])
+        method(value)
 
-    def update(self, chain_id, seq, data_dict=None):
-        self._cls.update(chain_id, seq, data_dict)
+    def __save(self, value):
+        self._cls.save(value)
 
-    def get(self, chain_id, seq, key):
-        return self._cls.lrange(chain_id, 0, 0)
+    def __update(self, value):
+        chain_id = value.get('chain_id', None)
+        seq = value.get('seq', None)
+        assert chain_id is not None and seq is not None
+        if self.__exist(chain_id, seq):
+            self._cls.update(chain_id, seq, value)
+        else:
+            value['_action'] = 'update'
+            msg_queue.put(value)
+
+    def __exist(self, chain_id, seq):
+        return self._cls.exist(chain_id, seq)
 
     def __del__(self):
         global __manager_status
@@ -141,15 +166,20 @@ class Tracker(object):
         assert isinstance(_manager, BaseAdaptor)
         self.store = _manager
         self.total_took = 0
+        self.first_timestamp = self._curr_time
         self.tracking()
 
     @property
-    def _seq(self):
+    def _seq_next(self):
         self.__seq += 1
         return self.__seq
 
     @property
-    def _time(self):
+    def _seq_curr(self):
+        return self.__seq
+
+    @property
+    def _curr_time(self):
         return int(time.time() * 1000)
 
     def tracking(self, desc=None, exception=None, return_value=None):
@@ -175,21 +205,22 @@ class Tracker(object):
     def __send(self, desc=None, exception=None, return_value=None, track_finished=False):
         exc_message = None
         exc_info = None
+        end_timestamp = self._curr_time
         # FIXME exception occur, need update seq-1 message
         if exception:
             assert isinstance(exception, Exception)
             exc_message = exception.message.message
             exc_info = traceback.format_exc()
-        timestamp = self._time
+
         info = self.__get_caller_info(3)
-        message_formater = {
+        msg = {
             'chain_id': self.chain_id,
-            'seq': self._seq,
+            'seq': self._seq_next,
             'chain_name': self.chain_name,
             'took': 0,
             'return_value': return_value,
-            'bgn_timestamp': timestamp,
-            'end_timestamp': timestamp,
+            'bgn_timestamp': self._curr_time,
+            'end_timestamp': end_timestamp,
             'desc': desc,
             'exception_message': exc_message,
             'exception_stack': exc_info,
@@ -201,25 +232,27 @@ class Tracker(object):
         }
 
         if self.last_message:  # has last message
-            message_formater, self.last_message = self.last_message, message_formater
+            msg, self.last_message = self.last_message, msg
+            msg['end_timestamp'] = end_timestamp
+            msg['took'] = end_timestamp - msg['bgn_timestamp']
 
-            message_formater['end_timestamp'] = self._time
-            message_formater['took'] = message_formater['end_timestamp'] - message_formater['bgn_timestamp']
-            self.total_took += message_formater['took']
+            if exception:
+                self.__send_update(0, dict(exception_message=exc_message))
+                # last operation get exception, set this msg exception
+                msg['exception_message'] = exc_message
+                msg['exception_stack'] = exc_info
+
             if track_finished:
-                message_formater['track_finished'] = True
+                self.total_took = end_timestamp - self.first_timestamp
+                msg['track_finished'] = True
                 self.__send_update(0, dict(
-                    end_timestamp=message_formater['end_timestamp'],
+                    end_timestamp=end_timestamp,
                     took=self.total_took
                 ))
-            logger.debug("tracker took %d put message in queue %s", self.total_took, json.dumps(message_formater))
-            msg_queue.put(message_formater)
+            msg_queue.put(msg)
+            logger.debug("tracker took %d put message in queue %s", self.total_took, json.dumps(msg))
         else:
-            self.last_message = message_formater
-
-        if exception:
-            # self.store.update(self.chain_id, 0, 'exception_message', exc_message)
-            self.__send_update(0, dict(exception_message=exc_message))
+            self.last_message = msg
 
     def __get_caller_info(self, depth=3):
         """

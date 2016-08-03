@@ -5,6 +5,7 @@ import tracking
 
 import requests
 import time
+import random
 from function_call import register_tracker, unregister_tracker
 
 track_manager = tracking.TrackerManager(tracking.RedisAdaptor, redis_uri='redis://localhost:6380/3')
@@ -15,8 +16,10 @@ def length_html(data):
 
 # @tracking.track
 def request_url(url):
-    tracker = tracking.Tracker()
+    tracker = tracking.Tracker(chain_name='这里是个测试调用链%d' % random.randint(1, 10))
     try:
+        tracker.tracking(desc="url:%s" % url)
+        time.sleep(random.random())
         tracker.tracking(desc="下载url:%s" % url)
         r = requests.get(url)
         tracker.tracking(desc="计算下载url文件长度")
