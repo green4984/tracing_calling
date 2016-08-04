@@ -107,7 +107,7 @@ class TrackerManager(object):
         t.setDaemon(True)
         t.start()
 
-    def __receive_msg(self):
+    def __receive_msg(self, exist_when_empty=False):
         global __manager_status
         value = None
         while True:
@@ -120,6 +120,8 @@ class TrackerManager(object):
                 logger.debug("get data from msg_queue %s", value)
             except Queue.Empty as e:
                 logger.debug("get data from msg_queue empty %s", e.message, exc_info=1)
+            if exist_when_empty and msg_queue.qsize() == 0:
+                return
 
     def __router(self, value):
         action_dict = {
@@ -147,8 +149,12 @@ class TrackerManager(object):
         return self._cls.exist(chain_id, seq)
 
     def __del__(self):
-        global __manager_status
-        __manager_status = False
+        pass
+        # while msg_queue.qsize() > 0:
+        #     time.sleep(0.5)
+        # self.__receive_msg(exist_when_empty=True)
+        # global __manager_status
+        # __manager_status = False
 
 
 class Tracker(object):
