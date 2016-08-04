@@ -206,7 +206,6 @@ class Tracker(object):
         exc_message = None
         exc_info = None
         end_timestamp = self._curr_time
-        # FIXME exception occur, need update seq-1 message
         if exception:
             assert isinstance(exception, Exception)
             exc_message = exception.message.message
