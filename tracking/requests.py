@@ -4,8 +4,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from tracking import logger as logging
+from tracking import current_tracker
 import requests as _requests
-import inspect
 
 # save origin request for use
 _request = _requests.request
@@ -16,15 +16,19 @@ __implements__ = [
 
 
 def request(method, url, **kwargs):
-    logging.debug("request method %s url %s begin", method, url)
+    if current_tracker._is_tracking():
+        logging.debug("request method %s url %s begin", method, url)
     response = None
     try:
         response = _request(method, url, **kwargs)
     except Exception as e:
-        logging.error("request catch error %s", e.message, exc_info=1)
+        if current_tracker._is_tracking():
+            logging.error("request catch error %s", e.message, exc_info=1)
+            current_tracker.tracking(desc=u"request catch exception method %s url %s" % (method, url), exception=e)
         raise
     finally:
-        logging.debug("request method %s url %s end", method, url)
+        if current_tracker._is_tracking():
+            logging.debug("request method %s url %s end", method, url)
     return response
 
 

@@ -18,12 +18,13 @@ __manager_status = False
 _manager = None
 
 def track(func):
-    functools.wraps(func)
-
+    @functools.wraps(func)
     def _wrapper(*args, **kwargs):
-        setattr(func, '__track__', True)
+        from tracking import current_tracker
+        current_tracker._hook()
+        current_tracker.tracking(desc="call method %s" % repr(func.func_code))
         result = func(*args, **kwargs)
-        delattr(func, '__track__')
+        current_tracker._unhook()
         return result
 
     return _wrapper

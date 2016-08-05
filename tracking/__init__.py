@@ -24,3 +24,5 @@ from multiprocessing import Queue
 msg_queue = Queue()
 
 from .main import track, Tracker, TrackerManager, RedisAdaptor
+from .tracking_context import LocalProxy
+current_tracker = LocalProxy()

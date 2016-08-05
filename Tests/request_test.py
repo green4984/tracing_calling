@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-# from tracking import monkey; monkey.patch_request()
+from tracking import monkey; monkey.patch_request()
+from tracking import current_tracker as tracker
 import tracking
 
 import requests
@@ -14,19 +15,15 @@ def length_html(data):
     print len(data)
     return len(data)
 
-# @tracking.track
+@tracking.track
 def request_url(url):
-    tracker = tracking.Tracker(chain_name='这里是个测试调用链%d' % random.randint(1, 10))
     try:
-        tracker.tracking(desc="url:%s" % url)
         time.sleep(random.random())
-        tracker.tracking(desc="下载url:%s" % url)
         r = requests.get(url)
-        tracker.tracking(desc="计算下载url文件长度")
         length = length_html(r.text)
         return length
     except Exception as e:
-        tracker.tracking(desc="下载url:%s发生错误" % url, exception=e)
+        pass
     return 0
 
 def request_url_with_log(url):
@@ -54,4 +51,4 @@ request_url(url_list[0])
 # ])
 
 request_url(url_list[1])
-time.sleep(10000)
+request_url_with_log(url_list[1])
