@@ -12,6 +12,7 @@ import Queue
 from tracking import msg_queue, logger
 import inspect
 import abc
+import atexit
 import threading
 
 __manager_status = False
@@ -21,11 +22,10 @@ def track(func):
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
         from tracking import current_tracker
-        current_tracker._hook()
-        current_tracker.tracking(desc="call method %s" % repr(func.func_code))
-        result = func(*args, **kwargs)
-        current_tracker._unhook()
-        return result
+        with current_tracker:
+            # current_tracker.tracking(desc="call method %s" % repr(func.func_code))
+            result = func(*args, **kwargs)
+            return result
 
     return _wrapper
 
@@ -102,6 +102,7 @@ class TrackerManager(object):
         global _manager
         _manager = self._cls
         self.__init_send_thread()
+        atexit.register(self.__receive_msg, exist_when_empty=True)
 
     def __init_send_thread(self):
         t = threading.Thread(target=self.__receive_msg)
@@ -174,7 +175,7 @@ class Tracker(object):
         self.store = _manager
         self.total_took = 0
         self.first_timestamp = self._curr_time
-        self.tracking()
+        self.tracking(depth=7)
 
     @property
     def _seq_next(self):
@@ -189,14 +190,14 @@ class Tracker(object):
     def _curr_time(self):
         return int(time.time() * 1000)
 
-    def tracking(self, desc=None, exception=None, return_value=None):
+    def tracking(self, desc=None, exception=None, return_value=None, depth=3):
         """ track the calling chain list
         :param desc: description message of what you are tracking
         :param exception: when catch the exception you can pass it to track
         :param return_value: method return value you want to monitor
         :return:
         """
-        self.__send(desc, exception, return_value)
+        self.__send(desc, exception, return_value, depth=depth)
 
     def __send_update(self, seq=0, data_dict=None):
         if not data_dict:
@@ -209,7 +210,7 @@ class Tracker(object):
         msg.update(data_dict)
         msg_queue.put(msg)
 
-    def __send(self, desc=None, exception=None, return_value=None, track_finished=False):
+    def __send(self, desc=None, exception=None, return_value=None, track_finished=False, depth=3):
         exc_message = None
         exc_info = None
         end_timestamp = self._curr_time
@@ -218,7 +219,12 @@ class Tracker(object):
             exc_message = exception.message.message
             exc_info = traceback.format_exc()
 
-        info = self.__get_caller_info(3)
+        if track_finished:
+            info = self.__get_caller_info(depth)
+            print info
+        else:
+            info = self.__get_caller_info(depth)
+            print info
         msg = {
             'chain_id': self.chain_id,
             'seq': self._seq_next,
@@ -242,23 +248,32 @@ class Tracker(object):
             msg['end_timestamp'] = end_timestamp
             msg['took'] = end_timestamp - msg['bgn_timestamp']
 
-            if exception:
-                self.__send_update(0, dict(exception_message=exc_message))
-                # last operation get exception, set this msg exception
-                msg['exception_message'] = exc_message
-                msg['exception_stack'] = exc_info
-
-            if track_finished:
-                self.total_took = end_timestamp - self.first_timestamp
-                msg['track_finished'] = True
-                self.__send_update(0, dict(
-                    end_timestamp=end_timestamp,
-                    took=self.total_took
-                ))
+            self._catch_finish_or_exception(msg, exception, track_finished, end_timestamp)
             msg_queue.put(msg)
             logger.debug("tracker took %d put message in queue %s", self.total_took, json.dumps(msg))
+        elif self._seq_curr == 0: # generally message as seq 0
+            msg_queue.put(msg)
         else:
+            self._catch_finish_or_exception(msg, exception, track_finished, end_timestamp)
             self.last_message = msg
+
+    def _catch_finish_or_exception(self, msg, exception=None, track_finished=False, end_timestamp=None):
+        if exception:
+            assert isinstance(exception, Exception)
+            exc_message = exception.message.message
+            exc_info = traceback.format_exc()
+            self.__send_update(0, dict(exception_message=exc_message, exception_stack=exc_info))
+            msg['exception_message'] = exc_message
+            msg['exception_stack'] = exc_info
+
+        if track_finished:
+            self.total_took = end_timestamp - self.first_timestamp
+            msg['track_finished'] = True
+            self.__send_update(0, dict(
+                    end_timestamp=end_timestamp,
+                    took=self.total_took,
+                    track_finished=True
+            ))
 
     def __get_caller_info(self, depth=3):
         """
@@ -273,5 +288,5 @@ class Tracker(object):
         track finish
         :return:
         """
-        self.__send(track_finished=True)
+        self.__send(track_finished=True, depth=6)
         pass

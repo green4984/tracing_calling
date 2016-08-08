@@ -16,18 +16,18 @@ __implements__ = [
 
 
 def request(method, url, **kwargs):
-    if current_tracker._is_tracking():
+    if current_tracker._is_tracking:
         logging.debug("request method %s url %s begin", method, url)
     response = None
     try:
         response = _request(method, url, **kwargs)
     except Exception as e:
-        if current_tracker._is_tracking():
+        if current_tracker._is_tracking:
             logging.error("request catch error %s", e.message, exc_info=1)
-            current_tracker.tracking(desc=u"request catch exception method %s url %s" % (method, url), exception=e)
+            current_tracker.tracking(desc=u"request catch exception method %s url %s" % (method, url), exception=e, depth=5)
         raise
     finally:
-        if current_tracker._is_tracking():
+        if current_tracker._is_tracking:
             logging.debug("request method %s url %s end", method, url)
     return response
 

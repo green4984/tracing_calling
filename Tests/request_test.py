@@ -24,9 +24,10 @@ def request_url(url):
         return length
     except Exception as e:
         pass
+        #tracker.tracking(exception=e)
     return 0
 
-def request_url_with_log(url):
+def request_url_without_log(url):
     r = requests.get(url)
     r = requests.request('GET', url)
     return length_html(r.text)
@@ -43,12 +44,12 @@ url_list = [
 #     [__file__, 'length_html']
 # ])
 
-request_url(url_list[0])
 
 # unregister_tracker([
 #     [__file__, 'request_url'],
 #     [__file__, 'length_html']
 # ])
 
+request_url(url_list[0])
 request_url(url_list[1])
-request_url_with_log(url_list[1])
+request_url_without_log(url_list[1])
