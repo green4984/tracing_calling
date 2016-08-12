@@ -6,12 +6,12 @@ import threading
 from .main import Tracker
 from tracking import logger
 
-
 __all__ = [
     'LocalProxy'
 ]
 
 _local = threading.local()
+
 
 class LocalProxy(object):
     def __init__(self):

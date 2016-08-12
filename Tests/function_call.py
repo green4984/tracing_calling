@@ -5,8 +5,10 @@ import time
 
 TIME_CALL = {}
 
+
 class FunctionCall(object):
     pass
+
 
 def trace_calls_and_returns(frame, event, arg):
     co = frame.f_code
@@ -25,7 +27,8 @@ def trace_calls_and_returns(frame, event, arg):
     caller_func_name = caller.f_code.co_name
     if event == 'call':
         TIME_CALL[key] = time.time()
-        print '%s call %s on line %s of %s at time %f' % (caller_func_name, func_name, caller_line_no, filename, time.time())
+        print '%s call %s on line %s of %s at time %f' % (
+        caller_func_name, func_name, caller_line_no, filename, time.time())
         return trace_calls_and_returns
     elif event == 'return':
         bgn_time = TIME_CALL[key]
@@ -35,6 +38,7 @@ def trace_calls_and_returns(frame, event, arg):
         print '%s exception at time %f spend time %f' % (func_name, time.time(), time.time() - bgn_time)
     return
 
+
 def register_tracker(func_list=None):
     import sys
     global TIME_CALL
@@ -43,13 +47,13 @@ def register_tracker(func_list=None):
         TIME_CALL.setdefault(func[0] + u':' + func[1], 0)
     sys.settrace(trace_calls_and_returns)
 
+
 def unregister_tracker(func_list=None):
     global TIME_CALL
     func_list = func_list or []
     for func in func_list:
         TIME_CALL.pop(func[0] + u':' + func[1], None)
     sys.settrace(None)
-
 
 # def trace_lines(frame, event, arg):
 #     if event != 'line':

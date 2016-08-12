@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
-from __future__ import print_function
+import sys
+
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
+
 try:  # Python 2.7+
     from logging import NullHandler
 except ImportError:
@@ -18,6 +20,9 @@ console.setFormatter(formater)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console)
 
+from .import_hook import ImportHookFinder
+
+sys.meta_path.insert(0, ImportHookFinder())
 
 from multiprocessing import Queue
 
@@ -25,4 +30,5 @@ msg_queue = Queue()
 
 from .main import track, Tracker, TrackerManager, RedisAdaptor
 from .tracking_context import LocalProxy
+
 current_tracker = LocalProxy()

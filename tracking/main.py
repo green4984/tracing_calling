@@ -18,6 +18,7 @@ import threading
 __manager_status = False
 _manager = None
 
+
 def track(func):
     @functools.wraps(func)
     def _wrapper(*args, **kwargs):
@@ -32,6 +33,7 @@ def track(func):
 
 class BaseAdaptor(object):
     __metaclass__ = abc.ABCMeta
+
     def __init__(self):
         pass
 
@@ -203,9 +205,9 @@ class Tracker(object):
         if not data_dict:
             return
         msg = dict(
-            chain_id=self.chain_id,
-            seq=seq,
-            _action='update'
+                chain_id=self.chain_id,
+                seq=seq,
+                _action='update'
         )
         msg.update(data_dict)
         msg_queue.put(msg)
@@ -251,7 +253,7 @@ class Tracker(object):
             self._catch_finish_or_exception(msg, exception, track_finished, end_timestamp)
             msg_queue.put(msg)
             logger.debug("tracker took %d put message in queue %s", self.total_took, json.dumps(msg))
-        elif self._seq_curr == 0: # generally message as seq 0
+        elif self._seq_curr == 0:  # generally message as seq 0
             msg_queue.put(msg)
         else:
             self._catch_finish_or_exception(msg, exception, track_finished, end_timestamp)

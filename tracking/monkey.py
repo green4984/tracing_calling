@@ -4,27 +4,28 @@ monkey patch for support lib
 """
 
 from __future__ import absolute_import
+from tracking.import_hook import register_import_hook, module_import_hook
 
 __all__ = [
-    'patch_request'
+    'patch_all'
 ]
 
-saved = {}
+_module_import_hook_registry = {}
 
-def patch_request():
-    """ Just for patch requests python lib for tracing operation
-    :return None
+
+def patch_all():
+    patch_module('requests.api', 'tracking.hooks.requests', 'tracking_hook_request_api')
+
+
+def patch_module(target, module, function):
+    """ hook module, wrap the real function call like decorator
+    :param target:
+    :param module:
+    :param function:
+    :return:
     """
-    patch_module('requests')
-
-
-def patch_module(name):
-    if name in saved:
+    if target in _module_import_hook_registry:
         return
-    inner_lib_module = getattr(__import__('tracking.' + name), name)
-    module_name = getattr(inner_lib_module, '__target__', name)
-    module = __import__(module_name)
-    implements = getattr(inner_lib_module, '__implements__', [])
-    for attr in implements:
-        setattr(module, attr, getattr(inner_lib_module, attr))
-    saved.setdefault(name, None)
+    _module_import_hook_registry.setdefault(target, None)
+    callback = module_import_hook(module, function)
+    register_import_hook(target, callback)
