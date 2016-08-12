@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from tracking import monkey;
-
+from tracking import monkey
 monkey.patch_all()
+
 from tracking import current_tracker as tracker
 import tracking
 

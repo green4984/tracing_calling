@@ -49,6 +49,10 @@ class BaseAdaptor(object):
     def exist(self, chain_id, seq):
         pass
 
+    @abc.abstractmethod
+    def adaptor_status(self):
+        pass
+
     def get(self, chain_id, seq):
         pass
 
@@ -93,6 +97,14 @@ class RedisAdaptor(BaseAdaptor):
             print old_value
             self.__redis.lset(chain_id, seq, self.serialize(old_value))
 
+    def adaptor_status(self):
+        try:
+            self.__redis.info()
+            return True
+        except Exception as e:
+            logger.error(e.message, exc_info=1)
+            return False
+
 
 class TrackerManager(object):
     def __init__(self, adaptor_class, *args, **kwargs):
@@ -128,6 +140,9 @@ class TrackerManager(object):
                 return
 
     def __router(self, value):
+        if not self._cls.adaptor_status():
+            logger.error("%s connection error", self._cls)
+            return
         action_dict = {
             'index': self.__save,
             'update': self.__update,

@@ -18,9 +18,7 @@ def register_import_hook(name, callback):
             module = sys.modules.get(name, None)
             if module:
                 # already import, run this callback immediately
-                _import_hooks[name] = None
-                callback(module)
-                logger.debug("replace module %s!", name)
+                _fire_hook(name, module, callback)
             else:
                 _import_hooks[name] = [callback]
         else:
@@ -50,15 +48,21 @@ def module_import_hook(module_name, function_name):
 
     return _callback
 
+def _fire_hook(name, module, callback=None):
+    logger.debug("replace module %s!", name)
+    hooks = _import_hooks.get(name, [])
+    _import_hooks[name] = None
+    if callback:
+        callback(module)
+    else:
+        for callback in hooks:
+            callback(module)
+
 
 class _ImportHookLoader(object):
     def load_module(self, fullname):
         module = sys.modules[fullname]
-        hooks = _import_hooks.get(fullname, [])
-        if hooks:
-            _import_hooks[fullname] = None
-        for callback in hooks:
-            callback(module)
+        _fire_hook(fullname, module)
         return module
 
 

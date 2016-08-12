@@ -27,5 +27,4 @@ def patch_module(target, module, function):
     if target in _module_import_hook_registry:
         return
     _module_import_hook_registry.setdefault(target, None)
-    callback = module_import_hook(module, function)
-    register_import_hook(target, callback)
+    register_import_hook(target, module_import_hook(module, function))
