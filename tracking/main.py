@@ -11,9 +11,9 @@ import simplejson as json
 import Queue
 from tracking import msg_queue, logger
 import inspect
-import abc
 import atexit
 import threading
+from .store_adaptor import BaseAdaptor
 
 __manager_status = False
 _manager = None
@@ -29,81 +29,6 @@ def track(func):
             return result
 
     return _wrapper
-
-
-class BaseAdaptor(object):
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self):
-        pass
-
-    @abc.abstractmethod
-    def save(self, value):
-        pass
-
-    @abc.abstractmethod
-    def update(self, chain_id, seq, data_dict=None):
-        pass
-
-    @abc.abstractmethod
-    def exist(self, chain_id, seq):
-        pass
-
-    @abc.abstractmethod
-    def adaptor_status(self):
-        pass
-
-    def get(self, chain_id, seq):
-        pass
-
-    def serialize(self, data):
-        return json.dumps(data)
-
-    def deserialize(self, data):
-        return json.loads(data)
-
-
-class RedisAdaptor(BaseAdaptor):
-    def __init__(self, redis_uri):
-        import redis
-        self.__redis = redis.from_url(redis_uri)
-        super(RedisAdaptor, self).__init__()
-
-    def save(self, value):
-        assert value
-        assert isinstance(value, dict)
-        key = value.get('chain_id')
-        self.__redis.rpush(key, self.serialize(value))
-
-    def get(self, chain_id, seq):
-        return self.__redis.lrange(chain_id, seq, seq)
-
-    def exist(self, chain_id, seq):
-        item = self.get(chain_id, seq)
-        if item:
-            return True
-        return False
-
-    def update(self, chain_id, seq, data_dict=None):
-        if not data_dict:
-            return
-        old_value = self.get(chain_id, seq)
-        if old_value and len(old_value) > 0:
-            old_value = old_value[0]
-            old_value = self.deserialize(old_value)
-            assert isinstance(old_value, dict)
-            for key, v in data_dict.iteritems():
-                old_value[key] = v
-            print old_value
-            self.__redis.lset(chain_id, seq, self.serialize(old_value))
-
-    def adaptor_status(self):
-        try:
-            self.__redis.info()
-            return True
-        except Exception as e:
-            logger.error(e.message, exc_info=1)
-            return False
 
 
 class TrackerManager(object):
@@ -135,12 +60,13 @@ class TrackerManager(object):
                 self.__router(value)
                 logger.debug("get data from msg_queue %s", value)
             except Queue.Empty as e:
-                logger.debug("get data from msg_queue empty %s", e.message, exc_info=1)
+                # logger.debug("get data from msg_queue empty %s", e.message, exc_info=1)
+                pass
             if exist_when_empty and msg_queue.qsize() == 0:
                 return
 
     def __router(self, value):
-        if not self._cls.adaptor_status():
+        if not self._cls.status():
             logger.error("%s connection error", self._cls)
             return
         action_dict = {

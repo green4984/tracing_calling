@@ -28,7 +28,10 @@ from multiprocessing import Queue
 
 msg_queue = Queue()
 
-from .main import track, Tracker, TrackerManager, RedisAdaptor
+from .main import track, Tracker, TrackerManager
+from .store_adaptor import BaseAdaptor
+from .store_adaptor.redis_adaptor import RedisAdaptor
+
 from .tracking_context import LocalProxy
 
 current_tracker = LocalProxy()
