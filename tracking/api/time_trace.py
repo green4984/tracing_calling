@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import abc
 from tracking import current_tracker, logger
 
 class TimeTrace(object):
@@ -34,4 +35,3 @@ class TimeTrace(object):
         self.end_time = self._curr_time
         self.duration = self.end_time - self.start_time
         logger.debug("duration %d", self.duration)
-        pass
