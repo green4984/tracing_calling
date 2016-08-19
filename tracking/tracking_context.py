@@ -26,7 +26,7 @@ class LocalProxy(object):
         self._unhook()
         if exc_tb:
             logger.error("LocalProxy catch exception %s", exc_val.message)
-            self.tracking(exception=exc_tb)
+            self.tracking_end(exception=exc_tb)
             raise
 
     @property
