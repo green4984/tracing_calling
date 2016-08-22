@@ -58,6 +58,6 @@ url_list = [
 #     [__file__, 'length_html']
 # ])
 
-#request_url(url_list[0])
-request_url(url_list[1])
+request_url(url_list[0])
+# request_url(url_list[1])
 #request_url_without_log(url_list[1])

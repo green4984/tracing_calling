@@ -246,7 +246,11 @@ class Tracker(object):
             assert isinstance(exception, Exception)
             exc_message = exception.message.message
             exc_info = traceback.format_exc()
-            self._send_update_msg(0, exception_message=exc_message, exception_stack=exc_info)
+            self._send_update_msg(0, caller_line=msg['caller_line'],
+                                  caller_filename=msg['caller_filename'],
+                                  caller_lineno=msg['caller_lineno'],
+                                  caller_function_name=msg['caller_function_name'],
+                                  exception_message=exc_message, exception_stack=exc_info)
             if msg:
                 msg['exception_message'] = exc_message
                 msg['exception_stack'] = exc_info
