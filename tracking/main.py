@@ -118,11 +118,12 @@ class Tracker(object):
         self.store = _manager
         self.total_took = 0
         self.first_timestamp = self._curr_time
+        self.bgn = 0
         self._init_tracking()
 
     def _init_tracking(self):
         self.tracking_begin(desc=self.chain_name, bgn=self._curr_time)
-        self.tracking_end(depth=8)
+        msg = self.tracking_end(depth=8)
 
     @property
     def _seq_next(self):
@@ -143,10 +144,11 @@ class Tracker(object):
         :param bgn:
         :return:
         """
+        self.bgn = bgn or self._curr_time
         msg = self._make_msg(desc, None, None, False, bgn)
         self.last_message = msg
 
-    def tracking_end(self, exception=None, return_value=None, track_finished=False, depth=3, end=None, duration=None):
+    def tracking_end(self, exception=None, return_value=None, track_finished=False, depth=3, end=None, duration=None, handle_func=None):
         """ track the calling chain list
         :param exception: when catch the exception you can pass it to track
         :param return_value: method return value you want to monitor
@@ -162,6 +164,7 @@ class Tracker(object):
 
         msg = self.last_message
         end = end or self._curr_time
+        duration = duration or end - self.bgn
         try:
             msg['end_timestamp'] = end
             msg['took'] = duration
@@ -169,6 +172,11 @@ class Tracker(object):
             self._set_caller_info(msg, depth=depth)
             self._catch_finish_or_exception(msg, exception, track_finished, end)
             self.last_message = msg
+            if handle_func:
+                try:
+                    msg = handle_func(msg)
+                except Exception as e:
+                    logger.error("handle_func %s error %s", handle_func, e.message, exc_info=1)
         except Exception as e:
             if not msg:
                 self._catch_finish_or_exception(msg, exception, track_finished, end)
@@ -177,6 +185,8 @@ class Tracker(object):
         finally:
             self.last_message = None
         logger.debug("tracker took %d put message in queue %s", self.total_took, json.dumps(msg))
+        if msg:
+            self._send_msg(msg)
         return msg
 
     def _set_caller_info(self, msg, depth=3):
@@ -185,11 +195,11 @@ class Tracker(object):
             'caller_filename': info[0],
             'caller_lineno': info[1],
             'caller_function_name': info[2],
-            'caller_line': info[3]
+            'caller_line': map(lambda x: x.strip(), info[3])
         })
         return msg
 
-    def _make_msg(self, desc=None, exception=None, return_value=None, track_finished=False, bgn=None, end=None):
+    def _make_msg(self, desc=None, exception=None, return_value=None, track_finished=False, bgn=None, end=None, duration=0):
         exc_message = None
         exc_info = None
         if exception:
@@ -200,7 +210,7 @@ class Tracker(object):
             'chain_id': self.chain_id,
             'seq': self._seq_next,
             'chain_name': self.chain_name,
-            'took': 0,
+            'took': duration,
             'return_value': return_value,
             'bgn_timestamp': bgn,
             'end_timestamp': end,

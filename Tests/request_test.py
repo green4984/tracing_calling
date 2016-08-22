@@ -14,8 +14,11 @@ from function_call import register_tracker, unregister_tracker
 track_manager = tracking.TrackerManager(tracking.RedisAdaptor, redis_uri='redis://localhost:6380/3')
 
 
+@tracking.track
 def length_html(data):
+    tracker.tracking_begin(desc="length data")
     print len(data)
+    tracker.tracking_end(return_value=len(data))
     return len(data)
 
 
@@ -55,6 +58,6 @@ url_list = [
 #     [__file__, 'length_html']
 # ])
 
-request_url(url_list[0])
+#request_url(url_list[0])
 request_url(url_list[1])
-request_url_without_log(url_list[1])
+#request_url_without_log(url_list[1])
